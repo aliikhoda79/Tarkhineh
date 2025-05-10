@@ -1,8 +1,25 @@
 import HeaderListProfile from './HeaderListProfile'
 import Cookies from 'js-cookie'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery,useMutation } from '@tanstack/react-query'
+import { BASEURL } from '../../api'
+import { useDispatch, useSelector } from 'react-redux'
+import { addProduct } from '../../redux/shopCard/shopCardSlice'
 
-const dataInterests = [
+interface Interest {
+  name: string
+}
+
+interface Product {
+  name: string
+  price: number
+  image_url: string
+}
+
+interface Like {
+  product: Product
+}
+
+const dataInterests: Interest[] = [
   { name: 'همه' },
   { name: 'غذاهای اصلی' },
   { name: 'پیش‌غذا' },
@@ -10,28 +27,33 @@ const dataInterests = [
   { name: 'نوشیدنی' },
 ]
 
-const token = Cookies.get('accessToken')
+const token = Cookies.get('accessToken') || ''
 
-const fetchData = async () => {
-  let response = await fetch('http://localhost:3000/api/v1/client/likes', {
+const fetchData = async (): Promise<Like[]> => {
+  const response = await fetch(`${BASEURL}/client/likes`, {
     method: 'GET',
     headers: {
-      authorization: `Bearer ${token}`
-    }
+      authorization: `Bearer ${token}`,
+    },
   })
+
+  if (!response.ok) {
+    throw new Error('خطا در دریافت اطلاعات')
+  }
 
   return response.json()
 }
 
-
 function Interests() {
-
-  const data = useQuery({
-    queryKey: ["client"],
-    queryFn: fetchData
+  const { data, isLoading, error } = useQuery<Like[]>({
+    queryKey: ['client'],
+    queryFn: fetchData,
   })
 
-  console.log(data.data[0].product.image_url)
+  const dispatch = useDispatch()
+
+  if (isLoading) return <p>در حال بارگذاری...</p>
+  if (error) return <p>مشکلی پیش آمده است!</p>
 
   return (
     <div className="p-4">
@@ -56,23 +78,26 @@ function Interests() {
       </div>
 
       <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {data.data ? data.data.map((item, index) => (
+        {data?.map((item, index) => (
           <div
             key={index}
             className="flex flex-col items-center gap-2 rounded-2xl bg-white p-4 shadow-md transition hover:scale-105 hover:shadow-lg"
           >
             <img
-              src={`http://localhost:3000/${item.product.image_url}`}
+              src={`${BASEURL}/${item.product.image_url}`}
               alt={item.product.name}
               className="h-[180px] w-full max-w-xs rounded-lg object-cover"
             />
             <h2 className="text-lg font-semibold">{item.product.name}</h2>
             <p className="text-[#717171]">تومان {item.product.price}</p>
-            <button className="h-[40px] w-[80%] rounded-md bg-[#417F56] text-white hover:bg-[#315A3D]">
+            <button onClick={() => {
+              dispatch(addProduct(item.product)
+            )}}
+              className="h-[40px] w-[80%] rounded-md bg-[#417F56] text-white hover:bg-[#315A3D]">
               افزودن به سبد خرید
             </button>
-          </div> 
-        )) : ''}
+          </div>
+        ))}
       </div>
     </div>
   )
